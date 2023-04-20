@@ -9,7 +9,7 @@ module.exports = function autoBuffMod(mod){
     const config = require('./config.json')
     let enabled = config.enabled
     let dataObject = JSON.parse(data)
-    mod.hookOnce('S_SPAWN_ME', 'raw', () => {
+    mod.hookOnce('S_LOGIN', 14, () => {
         var myClass = mod.game.me.class
         if(config.data.hasOwnProperty(myClass) && config.data[myClass].enabled){
             setConsumables().then(() =>{
@@ -86,7 +86,7 @@ module.exports = function autoBuffMod(mod){
     }
     function autoBuff(consumable, abnormalities){
         if(!enabled) return
-        if(!multiBravery || !multiCane || mod.game.me.class != "warrior") return
+        if(!multiBravery || !multiCane) return
 
         mod.hook('S_ABNORMALITY_BEGIN', 4, event => {
             if(!enabled) return
