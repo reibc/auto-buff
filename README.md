@@ -4,7 +4,8 @@ Example: If you set `Menma's Brave Multi-Nostrum` for Adrenaline Rush, once that
 ### Usage
 Update the `config.json` file with the abnormality and the consumable you want to use for those abnormalities
 * Example
-    ```"glaiver": {
+    ```
+    "glaiver": {
         "enabled": true,
         "abnormalities": [702004, 103130],
         "consumableOnAbnormality": "canephora"
