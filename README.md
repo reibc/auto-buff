@@ -10,5 +10,21 @@ Update the `config.json` file with the abnormality and the consumable you want t
         "abnormalities": [702004, 103130],
         "consumableOnAbnormality": "canephora"
     },```
+* Classes names
+  ```
+        'warrior',
+        'lancer',
+        'slayer',
+        'berserker',
+        'sorcerer',
+        'archer',
+        'priest',
+        'elementalist',
+        'soulless',
+        'engineer',
+        'fighter',
+        'assassin',
+        'glaiver',
+    };
 ### Commands:
 `autobuff` -> Toggle on/off
