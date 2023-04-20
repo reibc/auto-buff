@@ -1,0 +1,15 @@
+{
+    "enabled": true,
+    "data": {
+        "warrior": {
+            "enabled": true,
+            "abnormalities": [103104, 103130],
+            "consumableOnAbnormality": "bravery"
+        },
+        "archer": {
+            "enabled": false,
+            "abnormalities": [200701],
+            "consumableOnAbnormality": "canephora"
+        }
+    }
+}
