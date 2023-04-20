@@ -25,6 +25,5 @@ Update the `config.json` file with the abnormality and the consumable you want t
         'fighter',
         'assassin',
         'glaiver',
-    };
 ### Commands:
 `autobuff` -> Toggle on/off
