@@ -2,20 +2,22 @@ module.exports = function autoBuffMod(mod){
     const multiNostrum = [280060, 280061];
     let multiBravery = null;
     let multiCane = null;
-    const TA2 = 103104;
+    let sleep = false
+    let sendAbnormality = false
     const fs = require('fs');
     const filePath = `${__dirname }/data.json`
     const data = fs.readFileSync(filePath, 'utf8');
-    const config = require('./config.json')
+    let config = require('./config.json')
+    let hooks = []
     let enabled = config.enabled
     let dataObject = JSON.parse(data)
-    mod.hookOnce('S_LOGIN', 14, () => {
-        var myClass = mod.game.me.class
+    mod.hook('S_LOGIN', 14, () => {
+        let myClass = mod.game.me.class
         if(config.data.hasOwnProperty(myClass) && config.data[myClass].enabled){
             setConsumables().then(() =>{
-                autoBuff(config.data[myClass].consumableOnAbnormality, config.data[myClass].abnormalities)
+                autoBuff(myClass)
             })
-        } 
+        }
     })
     function setHooks(){
         return new Promise(resolve => 
@@ -84,41 +86,113 @@ module.exports = function autoBuffMod(mod){
             }
         }
     }
-    function autoBuff(consumable, abnormalities){
+
+    function autoBuff(myClass){
         if(!enabled) return
         if(!multiBravery || !multiCane) return
-
-        mod.hook('S_ABNORMALITY_BEGIN', 4, event => {
+        let classData = config.data[myClass]
+        if(!classData.abnormalities){
+            if(!classData.bossAbnormality) {
+                mod.command.message(`please set config.json`)
+                return
+            }
+        }
+        if(!classData.consumable){
+            mod.command.message(`please set config.json`)
+            return
+        }
+        hook('S_ABNORMALITY_BEGIN', 4, {
+            filter: {fake:false, silenced:null}
+            },event => {
             if(!enabled) return
-            if(abnormalities.includes(event.id)){
-                mod.send('C_USE_PREMIUM_SLOT', 1, consumable == 'bravery' ? multiBravery.packet : multiCane.packet)
+            if(event.target != mod.game.me.gameId && event.id != classData.bossAbnormality) return
+            if((classData.abnormalities?.includes(event.id) ?? false) || (classData.bossAbnormality?.includes(event.id) ?? false)){
+                mod.send('C_USE_PREMIUM_SLOT', 1, classData.consumable == 'bravery' ? multiBravery.packet : multiCane.packet)
             }
         })
-        mod.hook('S_ABNORMALITY_END', 1, event => {
+        if(config.data[mod.game.me.class].delayConsumableOnSkill){
+            let delayConsumableOnSkill = config.data[mod.game.me.class].delayConsumableOnSkill
+            if (!enabled) return
+            hook('C_START_SKILL', 7, event => {
+                if(delayConsumableOnSkill.includes(event.skill.id)){
+                    sleep = true
+                }
+            })
+            hook('S_ACTION_END',5, {
+                "order": -1000000,
+                "filter": {
+                "fake": true
+                }},function(event){
+                    if(!enabled) return
+                    if(delayConsumableOnSkill.includes(event.skill.id) && !sendAbnormality){
+                        sleep = false
+                    }
+                    if(delayConsumableOnSkill.includes(event.skill.id) && sendAbnormality) {
+                        mod.send('C_USE_PREMIUM_SLOT', 1, classData.consumable == 'bravery' ? multiCane.packet : multiBravery.packet)
+                        sendAbnormality = false
+                        sleep = false
+                    }
+                }
+            )
+        }
+        hook('S_ABNORMALITY_END', 1, {
+            filter: {fake:false, silenced:null}
+        },event => {
             if(!enabled) return
-            if(abnormalities.includes(event.id)){
-                mod.send('C_USE_PREMIUM_SLOT', 1, consumable == 'bravery' ? multiCane.packet : multiBravery.packet)
+            if(event.target != mod.game.me.gameId && event.id != classData.abnormalities) return
+            if((classData.abnormalities?.includes(event.id) ?? false) && sleep || (classData.bossAbnormality?.includes(event.id) ?? false) && sleep){
+                sendAbnormality = true
+            } else if((classData.abnormalities?.includes(event.id) ?? false) || (classData.bossAbnormality?.includes(event.id) ?? false)){
+                mod.send('C_USE_PREMIUM_SLOT', 1, classData.consumable == 'bravery' ? multiCane.packet : multiBravery.packet)
             }
         })
     }
-    mod.command.add('autobuff', {
-        $default(){
-            enabled = !enabled;
-            mod.command.message(`auto-buff is ${(enabled ? 'enabled' : 'disabled')}`)
-            if(enabled){
-                let myClass = mod.game.me.class
-                autoBuff(config.data[myClass].consumableOnAbnormality, config.data[myClass].abnormalities)
-            }
-        }
+    function hook() {
+		hooks.push(mod.hook(...arguments))
+	}
+
+    function unhookAll(){
+        sleep = false
+        sendAbnormality = false
+        hooks.forEach(hook => mod.unhook(hook))
+		hooks = []
+    }
+	mod.game.on('leave_game', () => {
+        unhookAll()
     });
 
-    mod.command.add('updatehook', {
-        $default(){
+    mod.command.add('autobuff', {
+        $none(){
+            let myClass = mod.game.me.class
+            if(!config.data[myClass] || !config.data[myClass].enabled) return
+            enabled = !enabled;
+            !enabled ? unhookAll() : null
+            mod.command.message(`auto-buff is ${(enabled ? 'enabled' : 'disabled')}`)
+            if(enabled){
+                autoBuff(myClass)
+            }
+        },
+        reload(){
+            unhookAll()
+            let myClass = mod.game.me.class
+            config = reloadModule('./config.json')
+            if(config.data.hasOwnProperty(myClass) && config.data[myClass].enabled){
+                setConsumables().then(() =>{
+                    autoBuff(myClass)
+                })
+            }
+            mod.command.message(`AutoBuff reloaded successfully.`)
+            function reloadModule(modToReload){
+                delete require.cache[require.resolve(modToReload)];
+                return require(modToReload);
+            }
+        },
+        upadehook(){
             dataObject.setHook = false;
             fs.writeFileSync(filePath, JSON.stringify(dataObject, null, 2), (err) =>{
                 if(err) console.log(err)
             })
             mod.command.message(`Relog to apply the changes!`)
         }
-    })
+    });
 };
