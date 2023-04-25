@@ -48,3 +48,5 @@ Update the `config.json` file with the abnormality and the consumable you want t
 ### Commands:
 `autobuff` -> Toggle on/off  
 `autobuff reload` -> reload the module
+`autobuff log start` -> start logging an abnormality (use before starting the abnormality)
+`autobuff log stop` -> stop lopgging an abnormality (use after the abnormality runs out)
