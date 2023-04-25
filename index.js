@@ -9,6 +9,13 @@ module.exports = function autoBuffMod(mod){
     const data = fs.readFileSync(filePath, 'utf8');
     let config = require('./config.json')
     let hooks = []
+    let localHooks = []
+    let logObject = {
+        'log' : false,
+        'abnormalityList': [],
+        'abnormalityBegin': [],
+        'abnormalityEnd' : []
+    }
     let enabled = config.enabled
     let dataObject = JSON.parse(data)
     mod.hook('S_LOGIN', 14, () => {
@@ -68,6 +75,7 @@ module.exports = function autoBuffMod(mod){
     async function setConsumables(){
         if(!dataObject.setHook){
             await setHooks()
+            return
         }
         multiBravery = {
             packet:{
@@ -110,6 +118,7 @@ module.exports = function autoBuffMod(mod){
                 mod.send('C_USE_PREMIUM_SLOT', 1, classData.consumable == 'bravery' ? multiBravery.packet : multiCane.packet)
             }
         })
+
         if(config.data[mod.game.me.class].delayConsumableOnSkill){
             let delayConsumableOnSkill = config.data[mod.game.me.class].delayConsumableOnSkill
             if (!enabled) return
@@ -139,7 +148,7 @@ module.exports = function autoBuffMod(mod){
             filter: {fake:false, silenced:null}
         },event => {
             if(!enabled) return
-            if(event.target != mod.game.me.gameId && event.id != classData.abnormalities) return
+            if(event.target != mod.game.me.gameId && event.id != classData.bossAbnormality) return
             if((classData.abnormalities?.includes(event.id) ?? false) && sleep || (classData.bossAbnormality?.includes(event.id) ?? false) && sleep){
                 sendAbnormality = true
             } else if((classData.abnormalities?.includes(event.id) ?? false) || (classData.bossAbnormality?.includes(event.id) ?? false)){
@@ -147,6 +156,7 @@ module.exports = function autoBuffMod(mod){
             }
         })
     }
+
     function hook() {
 		hooks.push(mod.hook(...arguments))
 	}
@@ -155,6 +165,7 @@ module.exports = function autoBuffMod(mod){
         sleep = false
         sendAbnormality = false
         hooks.forEach(hook => mod.unhook(hook))
+        if(localHooks.length > 0) localHooks.forEach(hook => mod.unhook(hook))
 		hooks = []
     }
 	mod.game.on('leave_game', () => {
@@ -193,6 +204,42 @@ module.exports = function autoBuffMod(mod){
                 if(err) console.log(err)
             })
             mod.command.message(`Relog to apply the changes!`)
+        },
+        log(args){
+            function hook() {
+                localHooks.push(mod.hook(...arguments))
+            }
+            function logAbnormality(type, id){
+                type == 'begin' ? logObject.abnormalityBegin.push(id) : null
+                type == 'end' ? logObject.abnormalityEnd.push(id) : null
+                logObject.abnormalityBegin.forEach(element =>{
+                    if(logObject.abnormalityEnd && logObject.abnormalityEnd.includes(element) && !logObject.abnormalityList.includes(element)){
+                        logObject.abnormalityList.push(element)
+                    }
+                })
+            }
+            if(args == 'start'){
+                logObject.log = true
+                mod.command.message(`Abnormality logging started...`)
+                hook('S_ABNORMALITY_BEGIN', 4, event => {
+                    if(event.target != mod.game.me.gameId) return
+                    logAbnormality('begin', event.id)
+                })
+                hook('S_ABNORMALITY_END', 1, event => {
+                    if(event.target != mod.game.me.gameId) return
+                    logAbnormality('end', event.id)
+                })
+            }
+            else if(args == 'stop'){
+                mod.command.message(`Abnormalities logged:`)
+                logObject.abnormalityList.length == 0 ? mod.command.message(`No abnormalities have been logged.`) : mod.command.message(logObject.abnormalityList)
+                localHooks.forEach(hook => mod.unhook(hook))
+                localHooks = []
+                logObject.log = false
+                logObject.abnormalityBegin = []
+                logObject.abnormalityEnd = []
+                logObject.abnormalityList = []
+            }
         }
     });
 };
