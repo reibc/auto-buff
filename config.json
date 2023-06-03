@@ -4,7 +4,7 @@
         "warrior": {
             "enabled": true,
             "abnormalities": [103104, 103130],
-            "consumables": "bravery"
+            "consumable": "bravery"
         }
     }
 }
